@@ -89,6 +89,10 @@ class Vocation
 			return fromVocation;
 		}
 
+		bool canDualWield() const {
+			return dualWield;
+		}		
+
 		bool getMagicShield() const {
 			return magicShield;
 		}
@@ -125,6 +129,7 @@ class Vocation
 		uint32_t baseSpeed = 110;
 		uint16_t id;
 
+		bool dualWield = true;
 		bool magicShield = false;
 		bool combat = true;
 

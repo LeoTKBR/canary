@@ -109,6 +109,10 @@ bool Vocations::loadFromXml()
 			voc.fromVocation = pugi::cast<uint32_t>(attr.value());
 		}
 
+		if ((attr = vocationNode.attribute("dualwield"))) {
+			voc.dualWield = attr.as_bool();
+		}
+
 		if ((attr = vocationNode.attribute("canCombat"))) {
 			voc.combat = attr.as_bool();
 		}

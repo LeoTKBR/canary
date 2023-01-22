@@ -723,6 +723,14 @@ class Player final : public Creature, public Cylinder
 		void setFightMode(FightMode_t mode) {
 			fightMode = mode;
 		}
+
+		void setAttackHand(bool value) {
+			blockSkillAdvance = value;
+		}
+		bool isAttackHand() const {
+			return blockSkillAdvance;
+		}
+		
 		void setSecureMode(bool mode) {
 			secureMode = mode;
 		}
@@ -784,11 +792,25 @@ class Player final : public Creature, public Cylinder
 			return lastAttackBlockType;
 		}
 
+		void switchAttackHand() {
+			lastAttackHand = lastAttackHand == HAND_LEFT ? HAND_RIGHT : HAND_LEFT;
+		}
+		Slots_t getAttackHand() const {
+			return lastAttackHand == HAND_LEFT ? CONST_SLOT_LEFT : CONST_SLOT_RIGHT;
+		}
+		void switchBlockSkillAdvance() {
+			blockSkillAdvance = !blockSkillAdvance;
+		}
+		bool getBlockSkillAdvance() {
+			return blockSkillAdvance;
+		}
+
 		Item* getWeapon(Slots_t slot, bool ignoreAmmo) const;
 		Item* getWeapon(bool ignoreAmmo = false) const;
 		WeaponType_t getWeaponType() const;
 		int32_t getWeaponSkill(const Item* item) const;
 		void getShieldAndWeapon(const Item*& shield, const Item*& weapon) const;
+		bool isDualWielding() const;
 
 		void drainHealth(Creature* attacker, int32_t damage) override;
 		void drainMana(Creature* attacker, int32_t manaLoss) override;
@@ -2442,6 +2464,8 @@ class Player final : public Creature, public Cylinder
 		VipStatus_t statusVipList = VIPSTATUS_ONLINE;
 
 		bool chaseMode = false;
+		bool blockSkillAdvance = false;
+		bool lastAttackHand = false;
 		bool secureMode = true;
 		bool inMarket = false;
 		bool wasMounted = false;
@@ -2480,9 +2504,7 @@ class Player final : public Creature, public Cylinder
 
 		bool isPromoted() const;
 
-		uint32_t getAttackSpeed() const {
-			return vocation->getAttackSpeed();
-		}
+		uint32_t getAttackSpeed() const;
 
 		static double_t getPercentLevel(uint64_t count, uint64_t nextLevelCount);
 		double getLostPercent() const;
