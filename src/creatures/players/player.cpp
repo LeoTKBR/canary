@@ -4215,52 +4215,55 @@ void Player::getPathSearchParams(const std::shared_ptr<Creature> &creature, Find
 }
 
 void Player::doAttacking(uint32_t) {
-	if (lastAttack == 0) {
-		lastAttack = OTSYS_TIME() - getAttackSpeed() - 1;
-	}
+    if (lastAttack == 0) {
+        lastAttack = OTSYS_TIME() - getAttackSpeed() - 1;
+    }
 
-	if (hasCondition(CONDITION_PACIFIED)) {
-		return;
-	}
+    if (hasCondition(CONDITION_PACIFIED)) {
+        return;
+    }
 
-	auto attackedCreature = getAttackedCreature();
-	if (!attackedCreature) {
-		return;
-	}
+    auto attackedCreature = getAttackedCreature();
+    if (!attackedCreature) {
+        return;
+    }
+    uint32_t timeSinceLastAttack = OTSYS_TIME() - lastAttack;
+    uint32_t desiredFrequency = 200;
 
-	if ((OTSYS_TIME() - lastAttack) >= getAttackSpeed()) {
-		bool result = false;
+    if (timeSinceLastAttack >= desiredFrequency) {
+        bool result = false;
 
-		std::shared_ptr<Item> tool = getWeapon();
-		const WeaponShared_ptr weapon = g_weapons().getWeapon(tool);
-		uint32_t delay = getAttackSpeed();
-		bool classicSpeed = g_configManager().getBoolean(CLASSIC_ATTACK_SPEED);
+        std::shared_ptr<Item> tool = getWeapon();
+        const WeaponShared_ptr weapon = g_weapons().getWeapon(tool);
+        uint32_t delay = getAttackSpeed();
+        bool classicSpeed = g_configManager().getBoolean(CLASSIC_ATTACK_SPEED);
 
-		if (weapon) {
-			if (!weapon->interruptSwing()) {
-				result = weapon->useWeapon(static_self_cast<Player>(), tool, attackedCreature);
-			} else if (!classicSpeed && !canDoAction()) {
-				delay = getNextActionTime();
-			} else {
-				result = weapon->useWeapon(static_self_cast<Player>(), tool, attackedCreature);
-			}
-		} else if (hasWeaponDistanceEquipped()) {
-			return;
-		} else {
-			result = Weapon::useFist(static_self_cast<Player>(), attackedCreature);
-		}
+        if (weapon) {
+            if (!weapon->interruptSwing()) {
+                result = weapon->useWeapon(static_self_cast<Player>(), tool, attackedCreature);
+            } else if (!classicSpeed && !canDoAction()) {
+                delay = getNextActionTime();
+            } else {
+                result = weapon->useWeapon(static_self_cast<Player>(), tool, attackedCreature);
+            }
+        } else if (hasWeaponDistanceEquipped()) {
+            return;
+        } else {
+            result = Weapon::useFist(static_self_cast<Player>(), attackedCreature);
+        }
 
-		std::shared_ptr<Task> task = createPlayerTask(std::max<uint32_t>(SCHEDULER_MINTICKS, delay), std::bind(&Game::checkCreatureAttack, &g_game(), getID()), "Game::checkCreatureAttack");
-		if (!classicSpeed) {
-			setNextActionTask(task, false);
-		} else {
-			g_dispatcher().scheduleEvent(task);
-		}
+        std::shared_ptr<Task> task = createPlayerTask(std::max<uint32_t>(SCHEDULER_MINTICKS, delay), std::bind(&Game::checkCreatureAttack, &g_game(), getID()), "Game::checkCreatureAttack");
 
-		if (result) {
-			lastAttack = OTSYS_TIME();
-		}
-	}
+        if (!classicSpeed) {
+            setNextActionTask(task, false);
+        } else {
+            g_dispatcher().scheduleEvent(task);
+        }
+
+        if (result) {
+            lastAttack = OTSYS_TIME();
+        }
+    }
 }
 
 uint64_t Player::getGainedExperience(std::shared_ptr<Creature> attacker) const {
