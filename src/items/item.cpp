@@ -1300,7 +1300,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 		} else {
 			std::string attackDescription;
 			if (it.abilities && it.abilities->elementType != COMBAT_NONE && it.abilities->elementDamage != 0) {
-				int32_t totalElementDamage = it.abilities->elementDamage + element;
+				int32_t totalElementDamage = ((element > 0) ? element : it.abilities->elementDamage);
 				attackDescription = fmt::format("{} {}", totalElementDamage, getCombatName(it.abilities->elementType));
 			}
 
@@ -1727,7 +1727,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 		} else {
 			std::string attackDescription;
 			if (it.abilities && it.abilities->elementType != COMBAT_NONE && it.abilities->elementDamage != 0) {
-				int32_t totalElementDamage = it.abilities->elementDamage + element;
+				int32_t totalElementDamage = ((element > 0) ? element : it.abilities->elementDamage);
 				attackDescription = fmt::format("{} {}", totalElementDamage, getCombatName(it.abilities->elementType));
 			}
 
@@ -2789,10 +2789,10 @@ std::string Item::getDescription(const ItemType &it, int32_t lookDistance, const
 			}
 
 			if (it.abilities && it.abilities->elementType != COMBAT_NONE && it.abilities->elementDamage != 0 && !begin) {
-				s << " physical + " << it.abilities->elementDamage + element << ' ' << getCombatName(it.abilities->elementType);
+				s << " physical + " << ((element > 0) ? element : it.abilities->elementDamage) << ' ' << getCombatName(it.abilities->elementType);
 			} else if (it.abilities && it.abilities->elementType != COMBAT_NONE && it.abilities->elementDamage != 0 && begin) {
 				begin = false;
-				s << " (" << it.abilities->elementDamage + element << ' ' << getCombatName(it.abilities->elementType);
+				s << " (" << ((element > 0) ? element : it.abilities->elementDamage) << ' ' << getCombatName(it.abilities->elementType);
 			}
 
 			if (defense != 0 || extraDefense != 0 || it.isMissile()) {
