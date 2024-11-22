@@ -1282,7 +1282,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 				separator = true;
 			}
 			if (int32_t hitChance = item->getHitChance();
-				hitChance != 0) {
+			    hitChance != 0) {
 				if (separator) {
 					ss << ", ";
 				}
@@ -1290,7 +1290,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 				separator = true;
 			}
 			if (int32_t shootRange = item->getShootRange();
-				shootRange != 0) {
+			    shootRange != 0) {
 				if (separator) {
 					ss << ", ";
 				}
@@ -1709,7 +1709,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 				separator = true;
 			}
 			if (int32_t hitChance = it.hitChance;
-				hitChance != 0) {
+			    hitChance != 0) {
 				if (separator) {
 					ss << ", ";
 				}
@@ -1717,7 +1717,7 @@ Item::getDescriptions(const ItemType &it, const std::shared_ptr<Item> &item /*= 
 				separator = true;
 			}
 			if (int32_t shootRange = it.shootRange;
-				shootRange != 0) {
+			    shootRange != 0) {
 				if (separator) {
 					ss << ", ";
 				}
