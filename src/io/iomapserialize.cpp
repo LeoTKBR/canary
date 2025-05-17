@@ -14,52 +14,66 @@
 #include "game/game.hpp"
 #include "items/bed.hpp"
 
-void IOMapSerialize::loadHouseItems(Map* map) {
-	Benchmark bm_context;
+void IOMapSerialize::loadHouseItems(Map* map, int customMapIndex /* = -1 */) {
+    Benchmark bm_context;
 
-	DBResult_ptr result = Database::getInstance().storeQuery("SELECT `data` FROM `tile_store`");
-	if (!result) {
-		return;
-	}
+    DBResult_ptr result = Database::getInstance().storeQuery("SELECT `data` FROM `tile_store`");
+    if (!result) {
+        return;
+    }
 
-	do {
-		unsigned long attrSize;
-		const char* attr = result->getStream("data", attrSize);
+    do {
+        unsigned long attrSize;
+        const char* attr = result->getStream("data", attrSize);
 
-		PropStream propStream;
-		propStream.init(attr, attrSize);
+        PropStream propStream;
+        propStream.init(attr, attrSize);
 
-		uint16_t x, y;
-		uint8_t z;
-		if (!propStream.read<uint16_t>(x) || !propStream.read<uint16_t>(y) || !propStream.read<uint8_t>(z)) {
-			continue;
-		}
+        uint16_t x, y;
+        uint8_t z;
+        if (!propStream.read<uint16_t>(x) || !propStream.read<uint16_t>(y) || !propStream.read<uint8_t>(z)) {
+            continue;
+        }
 
-		std::shared_ptr<Tile> tile = map->getTile(x, y, z);
-		if (!tile) {
-			continue;
-		}
+        std::shared_ptr<Tile> tile = map->getTile(x, y, z);
+        if (!tile) {
+            continue;
+        }
 
-		uint32_t item_count;
-		if (!propStream.read<uint32_t>(item_count)) {
-			continue;
-		}
+        // Verificar se a casa pertence ao customMapIndex, se especificado
+        bool validHouse = true;
+        if (customMapIndex >= 0 && customMapIndex < 50) {
+            auto houseTile = std::dynamic_pointer_cast<HouseTile>(tile);
+            if (!houseTile || !houseTile->getHouse() || 
+                map->housesCustomMaps[customMapIndex].getHouse(houseTile->getHouse()->getId()) == nullptr) {
+                validHouse = false;
+            }
+        }
 
-		while (item_count--) {
-			if (auto houseTile = std::dynamic_pointer_cast<HouseTile>(tile)) {
-				const auto &house = houseTile->getHouse();
-				auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
-				if (!isTransferOnRestart && house->getOwner() == 0) {
-					g_logger().trace("Skipping load item from house id: {}, position: {}, house does not have owner", house->getId(), house->getEntryPosition().toString());
-					house->clearHouseInfo(false);
-					continue;
-				}
-			}
+        if (!validHouse) {
+            continue;
+        }
 
-			loadItem(propStream, tile, true);
-		}
-	} while (result->next());
-	g_logger().info("Loaded house items in {} milliseconds", bm_context.duration());
+        uint32_t item_count;
+        if (!propStream.read<uint32_t>(item_count)) {
+            continue;
+        }
+
+        while (item_count--) {
+            if (auto houseTile = std::dynamic_pointer_cast<HouseTile>(tile)) {
+                const auto &house = houseTile->getHouse();
+                auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
+                if (!isTransferOnRestart && house->getOwner() == 0) {
+                    g_logger().trace("Skipping load item from house id: {}, position: {}, house does not have owner", house->getId(), house->getEntryPosition().toString());
+                    house->clearHouseInfo(false);
+                    continue;
+                }
+            }
+
+            loadItem(propStream, tile, true);
+        }
+    } while (result->next());
+    g_logger().info("Loaded house items in {} milliseconds for {}", bm_context.duration(), customMapIndex == -1 ? "main map" : "custom map " + std::to_string(customMapIndex));
 }
 
 bool IOMapSerialize::saveHouseItems() {
@@ -270,10 +284,18 @@ void IOMapSerialize::saveTile(PropWriteStream &stream, const std::shared_ptr<Til
 	}
 }
 
-bool IOMapSerialize::loadHouseInfo() {
+bool IOMapSerialize::loadHouseInfo(int customMapIndex /* = -1 */) {
 	Database &db = Database::getInstance();
-
-	DBResult_ptr result = db.storeQuery("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses`");
+    DBResult_ptr result;
+	
+	if (customMapIndex == -1) {
+        // Carregar casas do mapa principal
+        result = db.storeQuery("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses` WHERE `map_index` = -1");
+    } else {
+        // Carregar casas do mapa personalizado
+        result = db.storeQuery(fmt::format("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses` WHERE `map_index` = {}", customMapIndex));
+    }
+	
 	if (!result) {
 		return false;
 	}

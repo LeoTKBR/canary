@@ -752,12 +752,10 @@ void Game::loadCustomMaps(const std::filesystem::path &customMapPath) {
 		}
 
 		map.loadMapCustom(filename, true, true, true, true, customMapIndex);
+        map.loadHouseInfo(customMapIndex); // Carregar informações das casas para o mapa personalizado
 
 		customMapIndex++;
 	}
-
-	// Must be done after all maps have been loaded
-	map.loadHouseInfo();
 }
 
 void Game::loadMap(const std::string &path, const Position &pos) {

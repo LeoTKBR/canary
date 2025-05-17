@@ -126,9 +126,23 @@ void Map::loadMapCustom(const std::string &mapName, bool loadHouses, bool loadMo
 	npcfile.clear();
 }
 
-void Map::loadHouseInfo() {
-	IOMapSerialize::loadHouseInfo();
-	IOMapSerialize::loadHouseItems(this);
+void Map::loadHouseInfo(int customMapIndex /* = -1 */) {
+    if (customMapIndex == -1) {
+        // Carregar casas do mapa principal
+        IOMapSerialize::loadHouseInfo();
+    	IOMapSerialize::loadHouseItems(this);
+    } else {
+        // Carregar casas do mapa personalizado com o índice especificado
+        if (customMapIndex >= 0 && customMapIndex < 50) {
+            IOMapSerialize::loadHouseInfo(customMapIndex); // Carrega informações gerais das casas
+            // Carregar apenas os itens das casas do customMapIndex
+            for (const auto &[houseId, house] : housesCustomMaps[customMapIndex].getHouses()) {
+                // Aqui você pode implementar uma lógica específica para carregar itens apenas das casas do customMapIndex
+                // Por enquanto, usaremos a função existente, mas ela precisa ser ajustada para filtrar por customMapIndex
+                IOMapSerialize::loadHouseItems(this, customMapIndex); // TODO: Filtrar por casas do customMapIndex
+            }
+        }
+    }
 }
 
 bool Map::save() {

@@ -13,9 +13,9 @@
 
 class IOMapSerialize {
 public:
-	static void loadHouseItems(Map* map);
+	static void loadHouseItems(Map* map, int customMapIndex = -1);
 	static bool saveHouseItems();
-	static bool loadHouseInfo();
+	static bool loadHouseInfo(int customMapIndex = -1);
 	static bool saveHouseInfo();
 
 private:
