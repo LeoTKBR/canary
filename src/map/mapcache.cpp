@@ -125,9 +125,9 @@ std::shared_ptr<Tile> MapCache::getOrCreateTileFromCache(const std::shared_ptr<F
 	auto pos = Position(x, y, z);
 
 	if (cachedTile->isHouse()) {
-    std::shared_ptr<House> house = nullptr;
+		std::shared_ptr<House> house = nullptr;
 
-		if(customMapIndex >= 0) {
+		if (customMapIndex >= 0) {
 			house = map->housesCustomMaps[customMapIndex].getHouse(cachedTile->houseId);
 		} else {
 			house = map->houses.getHouse(cachedTile->houseId);
