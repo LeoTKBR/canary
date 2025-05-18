@@ -414,7 +414,7 @@ public:
 	std::shared_ptr<House> getHouseByBidderName(const std::string &bidderName);
 	uint16_t getHouseCountByAccount(uint32_t accountId);
 
-	bool loadHousesXML(const std::string &filename);
+	bool loadHousesXML(const std::string &filename, int customMapIndex = -1);
 
 	void payHouses(RentPeriod_t rentPeriod) const;
 

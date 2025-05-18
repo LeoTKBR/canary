@@ -816,7 +816,7 @@ uint16_t Houses::getHouseCountByAccount(uint32_t accountId) {
 	return count;
 }
 
-bool Houses::loadHousesXML(const std::string &filename) {
+bool Houses::loadHousesXML(const std::string &filename, int customMapIndex) {
 	pugi::xml_document doc;
 	const pugi::xml_parse_result result = doc.load_file(filename.c_str());
 	if (!result) {
@@ -824,19 +824,29 @@ bool Houses::loadHousesXML(const std::string &filename) {
 		return false;
 	}
 
-	for (const auto &houseNode : doc.child("houses").children()) {
-		pugi::xml_attribute houseIdAttribute = houseNode.attribute("houseid");
-		if (!houseIdAttribute) {
-			return false;
-		}
+	for (auto houseNode : doc.child("houses").children("house")) {
+        uint32_t houseId = houseNode.attribute("id").as_uint(0);
+        if (houseId == 0) {
+            g_logger().debug("[Houses::loadHousesXML] - Invalid house ID in {}", filename);
+            continue;
+        }
 
-		auto houseId = pugi::cast<int32_t>(houseIdAttribute.value());
+        g_logger().debug("[Houses::loadHousesXML] - Processing house ID: {}", houseId);
 
-		const auto &house = getHouse(houseId);
-		if (!house) {
-			g_logger().error("[Houses::loadHousesXML] - Unknown house, id: {}", houseId);
-			return false;
-		}
+        std::shared_ptr<House> house = getHouse(houseId);
+        if (!house) {
+            g_logger().warn("[Houses::loadHousesXML] - Unknown house, id: {}", houseId);
+            house = addHouse(houseId);
+            if (!house) {
+				if (g_game().map.houses.getHouse(houseId)) {
+                g_logger().error("[Houses::loadHousesXML] - House ID: {} already exists in main map, cannot add to customMapIndex: {}", 
+                                 houseId, customMapIndex);
+                continue;
+            	}
+                g_logger().error("[Houses::loadHousesXML] - Failed to create house, id: {}", houseId);
+                return false;
+            }
+        }
 
 		house->setName(houseNode.attribute("name").as_string());
 

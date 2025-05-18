@@ -58,7 +58,7 @@ void IOMap::loadMap(Map* map, const Position &pos) {
 	uint32_t majorVersionItems = stream.getU32();
 	stream.getU32(); // minorVersionItems
 
-	if (version > 2) {
+	if (version > 5) {
 		throw IOMapException("Unknown OTBM version detected.");
 	}
 
@@ -116,7 +116,7 @@ void IOMap::parseMapDataAttributes(FileStream &stream, Map* map) {
 	}
 }
 
-void IOMap::parseTileArea(FileStream &stream, Map &map, const Position &pos) {
+void IOMap::parseTileArea(FileStream &stream, Map &map, const Position &pos, int customMapIndex) {
 	while (stream.startNode(OTBM_TILE_AREA)) {
 		const uint16_t base_x = stream.getU16();
 		const uint16_t base_y = stream.getU16();
@@ -139,9 +139,27 @@ void IOMap::parseTileArea(FileStream &stream, Map &map, const Position &pos) {
 
 			if (tileType == OTBM_HOUSETILE) {
 				tile->houseId = stream.getU32();
-				if (!map.houses.addHouse(tile->houseId)) {
-					throw IOMapException(fmt::format("[x:{}, y:{}, z:{}] Could not create house id: {}", x, y, z, tile->houseId));
-				}
+				std::shared_ptr<House> housePtr;
+				if (customMapIndex >= 0) {
+                    // Verificar se a casa já existe antes de criar
+                    housePtr = map.housesCustomMaps[customMapIndex].getHouse(tile->houseId);
+                    if (!housePtr) {
+                        g_logger().warn("Creating house ID: {} for customMapIndex: {}", tile->houseId, customMapIndex);
+                        housePtr = map.housesCustomMaps[customMapIndex].addHouse(tile->houseId);
+                    } else {
+                        g_logger().warn("House ID: {} already exists for customMapIndex: {}", tile->houseId, customMapIndex);
+                    }
+                } else {
+                    housePtr = map.houses.getHouse(tile->houseId);
+                    if (!housePtr) {
+                        housePtr = map.houses.addHouse(tile->houseId);
+                    }
+                }
+                if (!housePtr) {
+                    throw IOMapException(fmt::format("[x:{}, y:{}, z:{}] Could not create house id: {}", x, y, z, tile->houseId));
+                } else {
+                    g_logger().debug("Successfully associated house ID: {} at position [x:{}, y:{}, z:{}]", tile->houseId, x, y, z);
+                }
 			}
 
 			if (stream.isProp(OTBM_ATTR_TILE_FLAGS)) {

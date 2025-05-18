@@ -14,7 +14,7 @@
 #include "game/game.hpp"
 #include "items/bed.hpp"
 
-void IOMapSerialize::loadHouseItems(Map* map, int customMapIndex /* = -1 */) {
+void IOMapSerialize::loadHouseItems(Map* map) {
 	Benchmark bm_context;
 
 	DBResult_ptr result = Database::getInstance().storeQuery("SELECT `data` FROM `tile_store`");
@@ -40,19 +40,6 @@ void IOMapSerialize::loadHouseItems(Map* map, int customMapIndex /* = -1 */) {
 			continue;
 		}
 
-		// Verificar se a casa pertence ao customMapIndex, se especificado
-		bool validHouse = true;
-		if (customMapIndex >= 0 && customMapIndex < 50) {
-			auto houseTile = std::dynamic_pointer_cast<HouseTile>(tile);
-			if (!houseTile || !houseTile->getHouse() || map->housesCustomMaps[customMapIndex].getHouse(houseTile->getHouse()->getId()) == nullptr) {
-				validHouse = false;
-			}
-		}
-
-		if (!validHouse) {
-			continue;
-		}
-
 		uint32_t item_count;
 		if (!propStream.read<uint32_t>(item_count)) {
 			continue;
@@ -62,17 +49,28 @@ void IOMapSerialize::loadHouseItems(Map* map, int customMapIndex /* = -1 */) {
 			if (auto houseTile = std::dynamic_pointer_cast<HouseTile>(tile)) {
 				const auto &house = houseTile->getHouse();
 				auto isTransferOnRestart = g_configManager().getBoolean(TOGGLE_HOUSE_TRANSFER_ON_SERVER_RESTART);
-				if (!isTransferOnRestart && house->getOwner() == 0) {
-					g_logger().trace("Skipping load item from house id: {}, position: {}, house does not have owner", house->getId(), house->getEntryPosition().toString());
-					house->clearHouseInfo(false);
-					continue;
-				}
-			}
+				bool isCustomMap = false;
+					for (int i = 0; i < 50; ++i) {
+						if (map->housesCustomMaps[i].getHouse(house->getId())) {
+							isCustomMap = true;
+							break;
+						}
+					}
+					if (!isTransferOnRestart && house->getOwner() == 0 && !isCustomMap) {
+                    g_logger().trace("Skipping load item from house id: {}, position: {}, house does not have owner", 
+                                     house->getId(), house->getEntryPosition().toString());
+                    house->clearHouseInfo(false);
+                    continue;
+                }
+                g_logger().debug("Loading item for house ID: {} (customMap: {})", house->getId(), isCustomMap);
+            }
 
-			loadItem(propStream, tile, true);
-		}
-	} while (result->next());
-	g_logger().info("Loaded house items in {} milliseconds for {}", bm_context.duration(), customMapIndex == -1 ? "main map" : "custom map " + std::to_string(customMapIndex));
+            if (!loadItem(propStream, tile, true)) {
+                g_logger().warn("Failed to load item for tile [x:{}, y:{}, z:{}]", x, y, z);
+            }
+        }
+    } while (result->next());
+	g_logger().info("Loaded house items in {} milliseconds", bm_context.duration());
 }
 
 bool IOMapSerialize::saveHouseItems() {
@@ -283,28 +281,35 @@ void IOMapSerialize::saveTile(PropWriteStream &stream, const std::shared_ptr<Til
 	}
 }
 
-bool IOMapSerialize::loadHouseInfo(int customMapIndex /* = -1 */) {
+bool IOMapSerialize::loadHouseInfo() {
 	Database &db = Database::getInstance();
-	DBResult_ptr result;
 
-	if (customMapIndex == -1) {
-		// Carregar casas do mapa principal
-		result = db.storeQuery("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses` WHERE `map_index` = -1");
-	} else {
-		// Carregar casas do mapa personalizado
-		result = db.storeQuery(fmt::format("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses` WHERE `map_index` = {}", customMapIndex));
-	}
-
+	DBResult_ptr result = db.storeQuery("SELECT `id`, `owner`, `new_owner`, `bidder`, `bidder_name`, `highest_bid`, `internal_bid`, `bid_end_date`, `state`, `transfer_status` FROM `houses`");
 	if (!result) {
 		return false;
 	}
 
 	do {
 		auto houseId = result->getNumber<uint32_t>("id");
-		const auto house = g_game().map.houses.getHouse(houseId);
-		if (!house) {
-			continue;
-		}
+		std::shared_ptr<House> house = nullptr;
+
+        // Tentar encontrar a casa em housesCustomMaps primeiro
+        for (int i = 0; i < 50; ++i) {
+            house = g_game().map.housesCustomMaps[i].getHouse(houseId);
+            if (house) {
+                break;
+            }
+        }
+
+        // Se não encontrada, tentar no mapa principal
+        if (!house) {
+            house = g_game().map.houses.getHouse(houseId);
+            if (house) {
+            } else {
+                g_logger().warn("House ID: {} not found in any map", houseId);
+                continue;
+            }
+        }
 
 		auto owner = result->getNumber<uint32_t>("owner");
 		auto newOwner = result->getNumber<int32_t>("new_owner");
@@ -375,13 +380,28 @@ bool IOMapSerialize::loadHouseInfo(int customMapIndex /* = -1 */) {
 	result = db.storeQuery("SELECT `house_id`, `listid`, `list` FROM `house_lists`");
 	if (result) {
 		do {
-			const auto &house = g_game().map.houses.getHouse(result->getNumber<uint32_t>("house_id"));
-			if (house) {
-				auto listId = result->getNumber<uint32_t>("listid");
-				auto list = result->getString("list");
-				house->setAccessList(listId, list);
-			}
-		} while (result->next());
+			const auto houseId = result->getNumber<uint32_t>("house_id");
+            std::shared_ptr<House> house = nullptr;
+
+            // Tentar encontrar a casa em housesCustomMaps primeiro
+            for (int i = 0; i < 50; ++i) {
+                house = g_game().map.housesCustomMaps[i].getHouse(houseId);
+                if (house) {
+                    break;
+                }
+            }
+
+            // Se não encontrada, tentar no mapa principal
+            if (!house) {
+                house = g_game().map.houses.getHouse(houseId);
+            }
+
+            if (house) {
+                auto listId = result->getNumber<uint32_t>("listid");
+                auto list = result->getString("list");
+                house->setAccessList(listId, list);
+            }
+        } while (result->next());
 	}
 	return true;
 }
@@ -413,6 +433,23 @@ bool IOMapSerialize::SaveHouseInfoGuard() {
 			return false;
 		}
 	}
+
+	// Salvar casas personalizadas
+    for (int i = 0; i < 50; ++i) {
+        for (const auto &[key, house] : g_game().map.housesCustomMaps[i].getHouses()) {
+            auto stateValue = magic_enum::enum_integer(house->getState());
+            std::string values = fmt::format("{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}", 
+                house->getId(), house->getOwner(), house->getPaidUntil(), house->getPayRentWarnings(), 
+                db.escapeString(house->getName()), house->getTownId(), house->getRent(), house->getSize(), 
+                house->getBedCount(), house->getBidder(), db.escapeString(house->getBidderName()), 
+                house->getHighestBid(), house->getInternalBid(), house->getBidEndDate(), std::to_string(stateValue), 
+                (house->getTransferStatus() ? 1 : 0));
+
+            if (!houseUpdate.addRow(values)) {
+                return false;
+            }
+        }
+    }
 
 	if (!houseUpdate.execute()) {
 		return false;
@@ -453,6 +490,38 @@ bool IOMapSerialize::SaveHouseInfoGuard() {
 			}
 		}
 	}
+
+	// Salvar listas de acesso das casas personalizadas
+    for (int i = 0; i < 50; ++i) {
+        for (const auto &[key, house] : g_game().map.housesCustomMaps[i].getHouses()) {
+            std::string listText;
+            if (house->getAccessList(GUEST_LIST, listText) && !listText.empty()) {
+                query << house->getId() << ',' << GUEST_LIST << ',' << db.escapeString(listText) << ',' << version;
+                if (!listUpdate.addRow(query)) {
+                    return false;
+                }
+                listText.clear();
+            }
+
+            if (house->getAccessList(SUBOWNER_LIST, listText) && !listText.empty()) {
+                query << house->getId() << ',' << SUBOWNER_LIST << ',' << db.escapeString(listText) << ',' << version;
+                if (!listUpdate.addRow(query)) {
+                    return false;
+                }
+                listText.clear();
+            }
+
+            for (const std::shared_ptr<Door> &door : house->getDoors()) {
+                if (door->getAccessList(listText) && !listText.empty()) {
+                    query << house->getId() << ',' << door->getDoorId() << ',' << db.escapeString(listText) << ',' << version;
+                    if (!listUpdate.addRow(query)) {
+                        return false;
+                    }
+                    listText.clear();
+                }
+            }
+        }
+    }
 
 	if (!listUpdate.execute()) {
 		return false;

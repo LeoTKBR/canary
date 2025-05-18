@@ -99,7 +99,7 @@ std::shared_ptr<Item> MapCache::createItem(const std::shared_ptr<BasicItem> &Bas
 	return item;
 }
 
-std::shared_ptr<Tile> MapCache::getOrCreateTileFromCache(const std::shared_ptr<Floor> &floor, uint16_t x, uint16_t y) {
+std::shared_ptr<Tile> MapCache::getOrCreateTileFromCache(const std::shared_ptr<Floor> &floor, uint16_t x, uint16_t y, int customMapIndex) {
 	const auto &cachedTile = floor->getTileCache(x, y);
 	const auto oldTile = floor->getTile(x, y);
 	if (!cachedTile) {
@@ -125,7 +125,15 @@ std::shared_ptr<Tile> MapCache::getOrCreateTileFromCache(const std::shared_ptr<F
 	auto pos = Position(x, y, z);
 
 	if (cachedTile->isHouse()) {
-		if (const auto &house = map->houses.getHouse(cachedTile->houseId)) {
+    std::shared_ptr<House> house = nullptr;
+
+		if(customMapIndex >= 0) {
+			house = map->housesCustomMaps[customMapIndex].getHouse(cachedTile->houseId);
+		} else {
+			house = map->houses.getHouse(cachedTile->houseId);
+		}
+
+		if (house) {
 			tile = std::make_shared<HouseTile>(pos, house);
 			tile->safeCall([tile] {
 				tile->getHouse()->addTile(tile->static_self_cast<HouseTile>());

@@ -140,12 +140,15 @@ public:
 	 * \returns true if the map custom houses was loaded successfully
 	 */
 	static bool loadHousesCustom(Map* map, const std::string &mapName, int customMapIndex) {
+		if (customMapIndex < 0 || customMapIndex >= 50) {
+			g_logger().error("Invalid customMapIndex: {}", customMapIndex);
+			return false;
+		}
 		if (map->housefile.empty()) {
-			// OTBM file doesn't tell us about the housefile,
-			// Lets guess it is mapname-house.xml.
 			map->housefile = mapName;
 			map->housefile += "-house.xml";
 		}
+		g_logger().warn("Loading custom houses from file: {}", map->housefile);
 		return map->housesCustomMaps[customMapIndex].loadHousesXML(map->housefile);
 	}
 
@@ -153,7 +156,7 @@ private:
 	static void parseMapDataAttributes(FileStream &stream, Map* map);
 	static void parseWaypoints(FileStream &stream, Map &map);
 	static void parseTowns(FileStream &stream, Map &map);
-	static void parseTileArea(FileStream &stream, Map &map, const Position &pos);
+	static void parseTileArea(FileStream &stream, Map &map, const Position &pos, int customMapIndex = -1);
 };
 
 class IOMapException : public std::exception {

@@ -61,7 +61,7 @@ public:
 	 */
 	void loadMapCustom(const std::string &mapName, bool loadHouses, bool loadMonsters, bool loadNpcs, bool loadZones, int customMapIndex);
 
-	void loadHouseInfo(int customMapIndex = -1);
+	void loadHouseInfo();
 
 	/**
 	 * Save a map.
