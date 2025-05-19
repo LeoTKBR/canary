@@ -41,7 +41,7 @@ public:
 	 * Load a map.
 	 * \returns true if the map was loaded successfully
 	 */
-	void load(const std::string &identifier, const Position &pos = Position());
+	void load(const std::string &identifier, const Position &pos = Position(), int customMapIndex = -1);
 	/**
 	 * Load the main map
 	 * \param identifier Is the main map name (name of file .otbm)
@@ -50,7 +50,7 @@ public:
 	 * \param loadNpcs if true, the main map npcs is loaded
 	 * \returns true if the main map was loaded successfully
 	 */
-	void loadMap(const std::string &identifier, bool mainMap = false, bool loadHouses = false, bool loadMonsters = false, bool loadNpcs = false, bool loadZones = false, const Position &pos = Position());
+	void loadMap(const std::string &identifier, bool mainMap = false, bool loadHouses = false, bool loadMonsters = false, bool loadNpcs = false, bool loadZones = false, const Position &pos = Position(), int customMapIndex = -1);
 	/**
 	 * Load the custom map
 	 * \param identifier Is the map custom folder

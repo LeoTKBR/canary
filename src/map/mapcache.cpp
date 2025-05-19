@@ -125,21 +125,31 @@ std::shared_ptr<Tile> MapCache::getOrCreateTileFromCache(const std::shared_ptr<F
 	auto pos = Position(x, y, z);
 
 	if (cachedTile->isHouse()) {
+		g_logger().debug("Attempting to create HouseTile for houseId: {} in customMapIndex: {}", cachedTile->houseId, customMapIndex);
 		std::shared_ptr<House> house = nullptr;
-
 		if (customMapIndex >= 0) {
 			house = map->housesCustomMaps[customMapIndex].getHouse(cachedTile->houseId);
 		} else {
 			house = map->houses.getHouse(cachedTile->houseId);
+			// Fallback to custom maps if not found in main map
+			if (!house) {
+				for (int i = 0; i < 50; ++i) {
+					house = map->housesCustomMaps[i].getHouse(cachedTile->houseId);
+					if (house) {
+						g_logger().debug("House ID: {} found in customMapIndex: {}", cachedTile->houseId, i);
+						break;
+					}
+				}
+			}
 		}
-
 		if (house) {
 			tile = std::make_shared<HouseTile>(pos, house);
 			tile->safeCall([tile] {
 				tile->getHouse()->addTile(tile->static_self_cast<HouseTile>());
 			});
 		} else {
-			g_logger().error("[{}] house not found for houseId {}", std::source_location::current().function_name(), cachedTile->houseId);
+			g_logger().error("[{}] house not found for houseId {} in customMapIndex: {}", std::source_location::current().function_name(), cachedTile->houseId, customMapIndex);
+			throw std::runtime_error(fmt::format("House ID: {} not found for customMapIndex: {}", cachedTile->houseId, customMapIndex));
 		}
 	} else if (cachedTile->isStatic) {
 		tile = std::make_shared<StaticTile>(pos);

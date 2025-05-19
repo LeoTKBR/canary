@@ -37,7 +37,7 @@
     |--- OTBM_ITEM_DEF (not implemented)
 */
 
-void IOMap::loadMap(Map* map, const Position &pos) {
+void IOMap::loadMap(Map* map, const Position &pos, int customMapIndex) {
 	Benchmark bm_mapLoad;
 
 	const auto &fileByte = mio::mmap_source(map->path.string());
@@ -68,7 +68,7 @@ void IOMap::loadMap(Map* map, const Position &pos) {
 
 	if (stream.startNode(OTBM_MAP_DATA)) {
 		parseMapDataAttributes(stream, map);
-		parseTileArea(stream, *map, pos);
+		parseTileArea(stream, *map, pos, customMapIndex);
 		stream.endNode();
 	}
 
@@ -141,25 +141,25 @@ void IOMap::parseTileArea(FileStream &stream, Map &map, const Position &pos, int
 				tile->houseId = stream.getU32();
 				std::shared_ptr<House> housePtr;
 				if (customMapIndex >= 0) {
-					// Verificar se a casa já existe antes de criar
-					housePtr = map.housesCustomMaps[customMapIndex].getHouse(tile->houseId);
-					if (!housePtr) {
-						g_logger().warn("Creating house ID: {} for customMapIndex: {}", tile->houseId, customMapIndex);
-						housePtr = map.housesCustomMaps[customMapIndex].addHouse(tile->houseId);
-					} else {
-						g_logger().warn("House ID: {} already exists for customMapIndex: {}", tile->houseId, customMapIndex);
-					}
-				} else {
-					housePtr = map.houses.getHouse(tile->houseId);
-					if (!housePtr) {
-						housePtr = map.houses.addHouse(tile->houseId);
-					}
-				}
-				if (!housePtr) {
-					throw IOMapException(fmt::format("[x:{}, y:{}, z:{}] Could not create house id: {}", x, y, z, tile->houseId));
-				} else {
-					g_logger().debug("Successfully associated house ID: {} at position [x:{}, y:{}, z:{}]", tile->houseId, x, y, z);
-				}
+                    // Verificar se a casa já existe antes de criar
+                    housePtr = map.housesCustomMaps[customMapIndex].getHouse(tile->houseId);
+                    if (!housePtr) {
+                        g_logger().warn("Creating house ID: {} for customMapIndex: {}", tile->houseId, customMapIndex);
+                        housePtr = map.housesCustomMaps[customMapIndex].addHouse(tile->houseId);
+                    } else {
+                        g_logger().warn("House ID: {} already exists for customMapIndex: {}", tile->houseId, customMapIndex);
+                    }
+                } else {
+                    housePtr = map.houses.getHouse(tile->houseId);
+                    if (!housePtr) {
+                        housePtr = map.houses.addHouse(tile->houseId);
+                    }
+                }
+                if (!housePtr) {
+                    throw IOMapException(fmt::format("[x:{}, y:{}, z:{}] Could not create house id: {}", x, y, z, tile->houseId));
+                } else {
+                    g_logger().debug("Successfully associated house ID: {} at position [x:{}, y:{}, z:{}]", tile->houseId, x, y, z);
+                }
 			}
 
 			if (stream.isProp(OTBM_ATTR_TILE_FLAGS)) {

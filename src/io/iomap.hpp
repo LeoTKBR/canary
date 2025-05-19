@@ -22,7 +22,7 @@
 
 class IOMap {
 public:
-	static void loadMap(Map* map, const Position &pos = Position());
+	static void loadMap(Map* map, const Position &pos = Position(), int customMapIndex = -1);
 
 	/**
 	 * Load main map monsters
@@ -148,7 +148,7 @@ public:
 			map->housefile = mapName;
 			map->housefile += "-house.xml";
 		}
-		g_logger().warn("Loading custom houses from file: {}", map->housefile);
+		g_logger().debug("Loading custom houses from file: {}", map->housefile);
 		return map->housesCustomMaps[customMapIndex].loadHousesXML(map->housefile);
 	}
 

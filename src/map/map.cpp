@@ -21,16 +21,16 @@
 #include "map/spectators.hpp"
 #include "utils/astarnodes.hpp"
 
-void Map::load(const std::string &identifier, const Position &pos) {
+void Map::load(const std::string &identifier, const Position &pos, int customMapIndex) {
 	try {
 		path = identifier;
-		IOMap::loadMap(this, pos);
+		IOMap::loadMap(this, pos, customMapIndex);
 	} catch (const std::exception &e) {
-		g_logger().warn("[Map::load] - The map in folder {} is missing or corrupted", identifier);
+		g_logger().warn("[Map::load] - The map in folder {} is missing or corrupted", identifier, customMapIndex);
 	}
 }
 
-void Map::loadMap(const std::string &identifier, bool mainMap /*= false*/, bool loadHouses /*= false*/, bool loadMonsters /*= false*/, bool loadNpcs /*= false*/, bool loadZones /*= false*/, const Position &pos /*= Position()*/) {
+void Map::loadMap(const std::string &identifier, bool mainMap /*= false*/, bool loadHouses /*= false*/, bool loadMonsters /*= false*/, bool loadNpcs /*= false*/, bool loadZones /*= false*/, const Position &pos /*= Position()*/, int customMapIndex) {
 	// Only download map if is loading the main map and it is not already downloaded
 	if (mainMap && g_configManager().getBoolean(TOGGLE_DOWNLOAD_MAP) && !std::filesystem::exists(identifier)) {
 		const auto mapDownloadUrl = g_configManager().getString(MAP_DOWNLOAD_URL);
@@ -52,7 +52,7 @@ void Map::loadMap(const std::string &identifier, bool mainMap /*= false*/, bool 
 	}
 
 	// Load the map
-	load(identifier, pos);
+	load(identifier, pos, -1);
 
 	// Only create items from lua functions if is loading main map
 	// It needs to be after the load map to ensure the map already exists before creating the items
@@ -102,7 +102,7 @@ void Map::loadMap(const std::string &identifier, bool mainMap /*= false*/, bool 
 
 void Map::loadMapCustom(const std::string &mapName, bool loadHouses, bool loadMonsters, bool loadNpcs, bool loadZones, int customMapIndex) {
 	// Load the map
-	load(g_configManager().getString(DATA_DIRECTORY) + "/world/custom/" + mapName + ".otbm");
+	load(g_configManager().getString(DATA_DIRECTORY) + "/world/custom/" + mapName + ".otbm", Position(), customMapIndex);
 
 	if (loadMonsters && !IOMap::loadMonstersCustom(this, mapName, customMapIndex)) {
 		g_logger().warn("Failed to load monster custom data");
@@ -110,7 +110,7 @@ void Map::loadMapCustom(const std::string &mapName, bool loadHouses, bool loadMo
 
 	if (loadHouses && !IOMap::loadHousesCustom(this, mapName, customMapIndex)) {
 		g_logger().warn("Failed to load house custom data");
-	}
+    }
 
 	if (loadNpcs && !IOMap::loadNpcsCustom(this, mapName, customMapIndex)) {
 		g_logger().warn("Failed to load npc custom spawn data");
