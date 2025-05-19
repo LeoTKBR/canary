@@ -110,7 +110,7 @@ void Map::loadMapCustom(const std::string &mapName, bool loadHouses, bool loadMo
 
 	if (loadHouses && !IOMap::loadHousesCustom(this, mapName, customMapIndex)) {
 		g_logger().warn("Failed to load house custom data");
-    }
+	}
 
 	if (loadNpcs && !IOMap::loadNpcsCustom(this, mapName, customMapIndex)) {
 		g_logger().warn("Failed to load npc custom spawn data");
