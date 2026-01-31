@@ -17,7 +17,9 @@
     },
     {
       "name": "libmariadb",
-      "features": [ "mariadbclient" ]
+      "features": [
+        "mariadbclient"
+      ]
     },
     {
       "name": "gmp",
@@ -27,5 +29,6 @@
       "name": "mpir",
       "platform": "windows"
     }
-  ]
+  ],
+  "builtin-baseline": "23dc124705fcac41cf35c33dd9541f5094a9c19f"
 }
