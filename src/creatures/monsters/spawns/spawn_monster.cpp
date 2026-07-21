@@ -165,7 +165,7 @@ bool SpawnsMonster::isInZone(const Position &centerPos, int32_t radius, const Po
 void SpawnMonster::startSpawnMonsterCheck() {
 	if (checkSpawnMonsterEvent == 0) {
 		checkSpawnMonsterEvent = g_dispatcher().scheduleEvent(
-			getInterval(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster"
+			getInterval(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster", DispatcherLane::Maintenance
 		);
 	}
 }
@@ -215,7 +215,9 @@ bool SpawnMonster::spawnMonster(uint32_t spawnMonsterId, spawnBlock_t &sb, const
 	auto monster = std::make_shared<Monster>(monsterType);
 	if (startup) {
 		// No need to send out events to the surrounding since there is no one out there to listen!
-		if (!g_game().internalPlaceCreature(monster, sb.pos, true)) {
+		// Benchmark force-active mode still needs the creature check loop from boot.
+		const bool forceCreatureCheck = g_configManager().getBoolean(MONSTER_PERF_TEST_FORCE_ACTIVE);
+		if (!g_game().internalPlaceCreature(monster, sb.pos, true, false, forceCreatureCheck)) {
 			return false;
 		}
 	} else {
@@ -307,7 +309,7 @@ void SpawnMonster::checkSpawnMonster() {
 
 	if (spawnedMonsterMap.size() < spawnMonsterMap.size()) {
 		checkSpawnMonsterEvent = g_dispatcher().scheduleEvent(
-			getInterval(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster"
+			getInterval(), [this] { checkSpawnMonster(); }, "SpawnMonster::checkSpawnMonster", DispatcherLane::Maintenance
 		);
 	}
 }
@@ -318,7 +320,7 @@ void SpawnMonster::scheduleSpawn(uint32_t spawnMonsterId, spawnBlock_t &sb, cons
 	} else {
 		g_game().addMagicEffect(sb.pos, CONST_ME_TELEPORT);
 		g_dispatcher().scheduleEvent(
-			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [=, this, &sb] { scheduleSpawn(spawnMonsterId, sb, mType, interval - NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, startup); }, "SpawnMonster::scheduleSpawn"
+			NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, [=, this, &sb] { scheduleSpawn(spawnMonsterId, sb, mType, interval - NONBLOCKABLE_SPAWN_MONSTER_INTERVAL, startup); }, "SpawnMonster::scheduleSpawn", DispatcherLane::Maintenance
 		);
 	}
 }
@@ -456,6 +458,11 @@ std::shared_ptr<MonsterType> spawnBlock_t::getMonsterType() const {
 	if (monsterTypes.empty()) {
 		return nullptr;
 	}
+
+	if (monsterTypes.size() == 1) {
+		return monsterTypes.begin()->first;
+	}
+
 	uint32_t totalWeight = 0;
 	for (const auto &[mType, weight] : monsterTypes) {
 		if (!mType) {
@@ -469,12 +476,24 @@ std::shared_ptr<MonsterType> spawnBlock_t::getMonsterType() const {
 		}
 		totalWeight += weight;
 	}
+	if (totalWeight == 0) {
+		return nullptr;
+	}
+
 	uint32_t randomWeight = uniform_random(0, totalWeight - 1);
-	// order monsters by weight DESC
-	std::vector<std::pair<std::shared_ptr<MonsterType>, uint32_t>> orderedMonsterTypes(monsterTypes.begin(), monsterTypes.end());
-	std::ranges::sort(orderedMonsterTypes, [](const auto &a, const auto &b) {
-		return a.second > b.second;
+	std::vector<std::pair<std::shared_ptr<MonsterType>, uint32_t>> orderedMonsterTypes;
+	orderedMonsterTypes.reserve(monsterTypes.size());
+	for (const auto &[mType, weight] : monsterTypes) {
+		if (!mType) {
+			continue;
+		}
+		orderedMonsterTypes.emplace_back(mType, weight);
+	}
+
+	[[maybe_unused]] const auto sortedEnd = std::ranges::sort(orderedMonsterTypes, [](const auto &lhs, const auto &rhs) {
+		return lhs.second > rhs.second;
 	});
+
 	for (const auto &[mType, weight] : orderedMonsterTypes) {
 		if (randomWeight < weight) {
 			return mType;
